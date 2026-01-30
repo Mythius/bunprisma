@@ -1,48 +1,45 @@
-import { PrismaClient } from "./generated/prisma";
+import { Hono } from "hono";
+import { serveStatic } from "hono/bun";
+import { PrismaClient } from "./generated/prisma/client.ts";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
-const server = Bun.serve({
-  port: 3000,
-  async fetch(req) {
-    const url = new URL(req.url);
+const app = new Hono();
 
-    // GET /users - List all users
-    if (url.pathname === "/users" && req.method === "GET") {
-      const users = await prisma.user.findMany();
-      return Response.json(users);
-    }
+// API routes
+app.get("/health", (c) => c.json({ status: "ok" }));
 
-    // POST /users - Create a user
-    if (url.pathname === "/users" && req.method === "POST") {
-      const body = (await req.json()) as { email: string; name?: string };
-      const user = await prisma.user.create({
-        data: {
-          email: body.email,
-          name: body.name,
-        },
-      });
-      return Response.json(user, { status: 201 });
-    }
-
-    // GET /users/:id - Get a user by ID
-    const userMatch = url.pathname.match(/^\/users\/(\d+)$/);
-    if (userMatch && req.method === "GET") {
-      const id = parseInt(userMatch[1]!);
-      const user = await prisma.user.findUnique({ where: { id } });
-      if (!user) {
-        return Response.json({ error: "User not found" }, { status: 404 });
-      }
-      return Response.json(user);
-    }
-
-    // Health check
-    if (url.pathname === "/health") {
-      return Response.json({ status: "ok" });
-    }
-
-    return Response.json({ error: "Not found" }, { status: 404 });
-  },
+app.get("/users", async (c) => {
+  const users = await prisma.user.findMany();
+  return c.json(users);
 });
 
-console.log(`Server running at http://localhost:${server.port}`);
+app.post("/users", async (c) => {
+  const body = await c.req.json<{ email: string; name?: string }>();
+  const user = await prisma.user.create({
+    data: {
+      email: body.email,
+      name: body.name,
+    },
+  });
+  return c.json(user, 201);
+});
+
+app.get("/users/:id", async (c) => {
+  const id = parseInt(c.req.param("id"));
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    return c.json({ error: "User not found" }, 404);
+  }
+  return c.json(user);
+});
+
+// Serve static files from public/
+app.use("/*", serveStatic({ root: "./public" }));
+
+export default {
+  port: 3000,
+  fetch: app.fetch,
+};
