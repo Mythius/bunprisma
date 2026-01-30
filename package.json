@@ -16,6 +16,7 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "hono": "^4.11.7",
+    "ioredis": "^5.9.2",
     "pg": "^8.18.0",
     "prisma": "^7.3.0"
   }
