@@ -16,5 +16,8 @@ FROM base AS runner
 COPY --from=build /app .
 COPY --from=deps /app/node_modules ./node_modules
 
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
 EXPOSE 3000
-CMD ["bun", "run", "index.ts"]
+CMD ["./entrypoint.sh"]

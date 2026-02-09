@@ -37,11 +37,11 @@ app.get("/api/cache/:key", async (c) => {
 
 
 app.use("/api/*", async (c, next) => {
-  
+  await next();
 });
 
 
-createCRUD(app, "/api/users", prisma.user);
+createCRUD(app, "/api/user", prisma.user);
 
 // Serve static files from public/
 app.use("/*", serveStatic({ root: "./public" }));
